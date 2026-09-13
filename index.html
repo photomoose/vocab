@@ -1,0 +1,683 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vocab — Spanish Practice</title>
+<style>
+  :root {
+    --bg: #f6f5f1;
+    --panel: #ffffff;
+    --ink: #1d1c1a;
+    --muted: #6d6a64;
+    --line: #e2dfd8;
+    --accent: #b4472a;
+    --good: #2f7d52;
+    --bad: #b23b3b;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16161a;
+      --panel: #1f1f24;
+      --ink: #ece9e4;
+      --muted: #9b968e;
+      --line: #33333a;
+      --accent: #e0764f;
+      --good: #63bd8b;
+      --bad: #e07a7a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    display: flex;
+    justify-content: center;
+    padding: 24px 16px 48px;
+  }
+  main { width: 100%; max-width: 620px; }
+  h1 {
+    font-size: 1.5rem;
+    margin: 0 0 4px;
+    letter-spacing: -0.01em;
+  }
+  .sub { color: var(--muted); font-size: 0.875rem; margin: 0 0 24px; }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  label.field { display: block; margin-bottom: 14px; }
+  label.field > span {
+    display: block;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  select, input[type=text] {
+    width: 100%;
+    padding: 10px 12px;
+    font-size: 1rem;
+    font-family: inherit;
+    color: var(--ink);
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+  }
+  input[type=text]:focus, select:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: -1px;
+  }
+  button {
+    font: inherit;
+    font-weight: 500;
+    padding: 10px 18px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    color: var(--ink);
+    cursor: pointer;
+  }
+  button:hover { border-color: var(--muted); }
+  button.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  button.primary:hover { filter: brightness(1.08); }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .hidden { display: none !important; }
+
+  /* Quiz */
+  .progress {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8125rem;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+  .bar { height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; margin-bottom: 20px; }
+  .bar > i { display: block; height: 100%; background: var(--accent); transition: width .25s ease; }
+  .prompt-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .prompt-word {
+    font-size: 2rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    margin-bottom: 4px;
+    word-break: break-word;
+  }
+  .prompt-hint { color: var(--muted); font-size: 0.875rem; margin-bottom: 20px; }
+  .spell-hint {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 1.75rem;
+    letter-spacing: 0.12em;
+    margin-bottom: 20px;
+    word-break: break-word;
+  }
+  .spell-hint .blank { color: var(--accent); }
+  .feedback { margin-top: 16px; font-size: 0.9375rem; min-height: 1.5em; }
+  .feedback.good { color: var(--good); }
+  .feedback.bad { color: var(--bad); }
+  .feedback b { font-weight: 600; }
+  .gender-pick { margin-top: 16px; }
+  .gender-pick > span {
+    display: block;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .gender-opts { display: flex; gap: 8px; }
+  .gender-opts button {
+    flex: 0 0 auto;
+    min-width: 92px;
+    padding: 8px 14px;
+  }
+  .gender-opts button[aria-pressed="true"] {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  .gender-opts button:disabled { opacity: .55; cursor: default; }
+  .tag {
+    display: inline-block;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: 999px;
+    padding: 1px 9px;
+    margin-left: 8px;
+    vertical-align: middle;
+  }
+  .accents { margin-top: 12px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .accents button {
+    padding: 6px 10px;
+    font-size: 1rem;
+    min-width: 38px;
+  }
+
+  /* Results */
+  .score { font-size: 2.5rem; font-weight: 600; letter-spacing: -0.02em; }
+  .score small { font-size: 1rem; font-weight: 400; color: var(--muted); }
+  table { width: 100%; border-collapse: collapse; margin: 18px 0; font-size: 0.9375rem; }
+  th {
+    text-align: left;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    font-weight: 500;
+    border-bottom: 1px solid var(--line);
+    padding: 0 8px 8px 0;
+  }
+  td { padding: 8px 8px 8px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  td.mark { width: 1.5em; }
+  td.wrong { color: var(--bad); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Spanish Vocab Practice</h1>
+  <p class="sub" id="wordCount"></p>
+
+  <!-- ================= SETUP ================= -->
+  <section id="setup" class="panel">
+    <label class="field">
+      <span>Test me on</span>
+      <select id="mode">
+        <option value="en-es">English → Spanish (translate)</option>
+        <option value="es-en">Spanish → English (translate)</option>
+        <option value="spell">Spelling — type the full Spanish word</option>
+        <option value="fill">Spelling — fill in the missing letters</option>
+        <option value="mixed">Mixed — a bit of everything</option>
+      </select>
+    </label>
+    <label class="field">
+      <span>Category</span>
+      <select id="category"></select>
+    </label>
+    <label class="field">
+      <span>Number of questions</span>
+      <select id="count">
+        <option>10</option>
+        <option selected>15</option>
+        <option>25</option>
+        <option value="all">All words</option>
+      </select>
+    </label>
+    <div class="row">
+      <button class="primary" id="startBtn">Start</button>
+    </div>
+  </section>
+
+  <!-- ================= QUIZ ================= -->
+  <section id="quiz" class="panel hidden">
+    <div class="progress">
+      <span id="qCounter"></span>
+      <span id="qScore"></span>
+    </div>
+    <div class="bar"><i id="qBar" style="width:0%"></i></div>
+
+    <div class="prompt-label" id="promptLabel"></div>
+    <div class="prompt-word" id="promptWord"></div>
+    <div class="prompt-hint" id="promptHint"></div>
+    <div class="spell-hint hidden" id="spellHint"></div>
+
+    <form id="answerForm" autocomplete="off">
+      <input type="text" id="answer" placeholder="Your answer" autocapitalize="off" spellcheck="false">
+      <div class="accents" id="accents"></div>
+      <div class="gender-pick hidden" id="genderPick">
+        <span id="genderPrompt">Gender</span>
+        <div class="gender-opts">
+          <button type="button" data-g="m" id="gM">masculine</button>
+          <button type="button" data-g="f" id="gF">feminine</button>
+        </div>
+      </div>
+      <div class="feedback" id="feedback"></div>
+      <div class="row" style="margin-top:16px">
+        <button class="primary" type="submit" id="submitBtn">Check</button>
+        <button type="button" id="skipBtn">Skip</button>
+        <button type="button" id="quitBtn">End quiz</button>
+      </div>
+    </form>
+  </section>
+
+  <!-- ================= RESULTS ================= -->
+  <section id="results" class="panel hidden">
+    <div class="score" id="finalScore"></div>
+    <div id="verdict" class="sub" style="margin-top:6px"></div>
+    <div id="reviewWrap"></div>
+    <div class="row">
+      <button class="primary" id="againBtn">Play again</button>
+      <button id="retryWrongBtn" class="hidden">Practise the ones I missed</button>
+    </div>
+  </section>
+</main>
+
+<script src="words.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  // ---------- helpers ----------
+  var $ = function (id) { return document.getElementById(id); };
+
+  function shuffle(arr) {
+    var a = arr.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+
+  // Lenient comparison: case-insensitive, accent-insensitive, ignores
+  // leading articles ("el/la/to ...") and trims punctuation/whitespace.
+  function normalise(s) {
+    return s
+      .toLowerCase()
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9ñ\s]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function stripArticle(s) {
+    return s.replace(/^(el|la|los|las|un|una|the|a|an|to)\s+/, "");
+  }
+
+  function matches(given, expected) {
+    var g = normalise(given), e = normalise(expected);
+    if (!g) return false;
+    return g === e || stripArticle(g) === stripArticle(e);
+  }
+
+  // Did they get it right apart from accents? (spelling modes care about this)
+  function accentsOnlyDiff(given, expected) {
+    return given.toLowerCase().trim() !== expected.toLowerCase() &&
+           normalise(given) === normalise(expected);
+  }
+
+  var MODE_LABELS = {
+    "en-es": "Translate to Spanish",
+    "es-en": "Translate to English",
+    "spell": "Spell the Spanish word",
+    "fill": "Complete the Spanish word"
+  };
+
+  // Replace roughly 40% of letters (min 1) with underscores.
+  function makeFillMask(word) {
+    var chars = word.split("");
+    var letterIdx = [];
+    for (var i = 0; i < chars.length; i++) {
+      if (/[^\s\-]/.test(chars[i])) letterIdx.push(i);
+    }
+    var nHide = Math.max(1, Math.round(letterIdx.length * 0.4));
+    // Keep the first letter visible when the word is long enough to need a clue.
+    var pool = letterIdx.length > 2 ? letterIdx.slice(1) : letterIdx;
+    var hide = shuffle(pool).slice(0, Math.min(nHide, pool.length));
+    hide.forEach(function (i) { chars[i] = "_"; });
+    return chars.join("");
+  }
+
+  // ---------- state ----------
+  var state = {
+    queue: [],      // [{word, qMode, mask}]
+    index: 0,
+    score: 0,
+    answered: false,
+    pickedGender: null,
+    log: [],        // [{prompt, expected, given, ok, qMode, word}]
+    settings: null
+  };
+
+  // ---------- setup screen ----------
+  function initSetup() {
+    $("wordCount").textContent = WORDS.length + " words loaded";
+
+    var cats = {};
+    WORDS.forEach(function (w) { cats[w.cat] = (cats[w.cat] || 0) + 1; });
+    var sel = $("category");
+    sel.innerHTML = '<option value="all">All categories (' + WORDS.length + ')</option>';
+    Object.keys(cats).sort().forEach(function (c) {
+      var o = document.createElement("option");
+      o.value = c;
+      o.textContent = c.charAt(0).toUpperCase() + c.slice(1) + " (" + cats[c] + ")";
+      sel.appendChild(o);
+    });
+
+    // Accent buttons — quicker than fighting the keyboard.
+    "á é í ó ú ü ñ".split(" ").forEach(function (ch) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.textContent = ch;
+      b.addEventListener("click", function () { insertChar(ch); });
+      $("accents").appendChild(b);
+    });
+  }
+
+  function insertChar(ch) {
+    var inp = $("answer");
+    var start = inp.selectionStart, end = inp.selectionEnd;
+    inp.value = inp.value.slice(0, start) + ch + inp.value.slice(end);
+    inp.selectionStart = inp.selectionEnd = start + ch.length;
+    inp.focus();
+  }
+
+  // ---------- quiz lifecycle ----------
+  function buildQueue(words, mode, count) {
+    var pool = shuffle(words);
+    if (count !== "all") pool = pool.slice(0, Math.min(Number(count), pool.length));
+    var modes = ["en-es", "es-en", "spell", "fill"];
+    return pool.map(function (w) {
+      var qMode = mode === "mixed" ? modes[Math.floor(Math.random() * modes.length)] : mode;
+      // Gendered nouns are asked in one specific gender, chosen at random.
+      // Invariable nouns (cantante) are spelt identically either way, so with no
+      // article to ask for there is nothing a gender would change — treat them
+      // as plain words and note the fact in the prompt.
+      var g = (w.gender === "pair" && !w.invariable)
+        ? (Math.random() < 0.5 ? "m" : "f") : null;
+      var target = g ? w[g] : w.es;
+      return {
+        word: w,
+        qMode: qMode,
+        gender: g,
+        target: target,
+        mask: qMode === "fill" ? makeFillMask(target) : null
+      };
+    });
+  }
+
+  function start(words, mode, count) {
+    state.queue = buildQueue(words, mode, count);
+    state.index = 0;
+    state.score = 0;
+    state.log = [];
+    state.settings = { words: words, mode: mode, count: count };
+    if (!state.queue.length) return;
+    $("setup").classList.add("hidden");
+    $("results").classList.add("hidden");
+    $("quiz").classList.remove("hidden");
+    renderQuestion();
+  }
+
+  function currentQ() { return state.queue[state.index]; }
+
+  function renderQuestion() {
+    var q = currentQ();
+    state.answered = false;
+
+    $("qCounter").textContent = "Question " + (state.index + 1) + " of " + state.queue.length;
+    $("qScore").textContent = state.score + " correct";
+    $("qBar").style.width = (state.index / state.queue.length * 100) + "%";
+
+    $("promptLabel").textContent = MODE_LABELS[q.qMode];
+    $("feedback").textContent = "";
+    $("feedback").className = "feedback";
+    $("submitBtn").textContent = "Check";
+    $("skipBtn").classList.remove("hidden");
+
+    var spell = $("spellHint");
+    var asksSpanish = q.qMode !== "es-en";
+    // When answering in Spanish we state which gender is wanted; when answering
+    // in English the gender is the question, so it must not be given away.
+    var tag = (q.gender && asksSpanish)
+      ? '<span class="tag">' + genderWord(q.gender) + '</span>' : '';
+
+    if (q.qMode === "fill") {
+      $("promptWord").innerHTML = esc(promptEnglish(q)) + tag;
+      $("promptHint").textContent = "Type the complete Spanish word.";
+      spell.classList.remove("hidden");
+      spell.innerHTML = q.mask.split("").map(function (c) {
+        return c === "_" ? '<span class="blank">_</span>' : c;
+      }).join("");
+    } else if (q.qMode === "spell") {
+      $("promptWord").innerHTML = esc(promptEnglish(q)) + tag;
+      $("promptHint").textContent = q.target.length + " letters — accents count in this mode." +
+        (q.word.invariable ? " Same spelling for masculine and feminine." : "");
+      spell.classList.add("hidden");
+    } else if (q.qMode === "en-es") {
+      $("promptWord").innerHTML = esc(promptEnglish(q)) + tag;
+      $("promptHint").textContent = q.word.invariable
+        ? "Same spelling for masculine and feminine."
+        : "";
+      spell.classList.add("hidden");
+    } else {
+      $("promptWord").textContent = q.target;
+      $("promptHint").textContent = q.word.invariable
+        ? "Same spelling for masculine and feminine."
+        : "";
+      spell.classList.add("hidden");
+    }
+
+    // Gender selector: only on Spanish→English, and only for nouns whose form
+    // reveals the gender. Invariable nouns carry no gender on the question at
+    // all, so they never reach here — the prompt hint explains why.
+    state.pickedGender = null;
+    var needsPick = !!(q.qMode === "es-en" && q.gender);
+    $("genderPick").classList.toggle("hidden", !needsPick);
+    if (needsPick) {
+      $("genderPrompt").textContent = "Which gender is this form?";
+      ["gM", "gF"].forEach(function (id) {
+        var b = $(id);
+        b.setAttribute("aria-pressed", "false");
+        b.disabled = false;
+      });
+    }
+
+    // Accent keys only matter when answering in Spanish.
+    $("accents").classList.toggle("hidden", q.qMode === "es-en");
+
+    var inp = $("answer");
+    inp.value = "";
+    inp.disabled = false;
+    inp.placeholder = q.qMode === "es-en" ? "Answer in English" : "Answer in Spanish";
+    inp.focus();
+  }
+
+  function expectedFor(q) {
+    if (q.qMode === "es-en") {
+      return q.gender ? q.word["en" + q.gender.toUpperCase()] : q.word.en;
+    }
+    return q.target;
+  }
+
+  // The English prompt, tagged with the gender being asked for.
+  function promptEnglish(q) {
+    if (!q.gender) return q.word.en;
+    return q.word["en" + q.gender.toUpperCase()];
+  }
+
+  function genderWord(g) { return g === "m" ? "masculine" : "feminine"; }
+
+  function check() {
+    var q = currentQ();
+    var given = $("answer").value;
+    if (!given.trim()) { $("answer").focus(); return; }
+
+    var expected = expectedFor(q);
+    var strict = (q.qMode === "spell" || q.qMode === "fill");
+    var wordOk;
+    if (strict) {
+      wordOk = given.toLowerCase().trim() === expected.toLowerCase();
+    } else {
+      wordOk = matches(given, expected);
+    }
+
+    // Gender half of the mark. Invariable questions have no gender, so there is
+    // nothing to score — the translation alone decides the mark.
+    var needsPick = !!(q.qMode === "es-en" && q.gender);
+    var genderOk = true;
+    if (needsPick) {
+      if (state.pickedGender === null) {
+        $("feedback").className = "feedback bad";
+        $("feedback").textContent = "Pick masculine or feminine as well.";
+        return;   // not an attempt yet — let them choose
+      }
+      genderOk = state.pickedGender === q.gender;
+    }
+
+    var ok = wordOk && genderOk;
+    state.answered = true;
+    if (ok) state.score++;
+
+    var fb = $("feedback");
+    if (ok) {
+      fb.className = "feedback good";
+      fb.innerHTML = "✓ Correct — <b>" + esc(expected) + "</b>" +
+        (q.word.invariable && q.qMode === "es-en"
+          ? " <span style='opacity:.75'>(same in both genders)</span>" : "");
+    } else if (wordOk && !genderOk) {
+      fb.className = "feedback bad";
+      fb.innerHTML = "✗ Right word, wrong gender — <b>" + esc(q.target) +
+        "</b> is <b>" + genderWord(q.gender) + "</b>.";
+    } else if (strict && accentsOnlyDiff(given, expected)) {
+      fb.className = "feedback bad";
+      fb.innerHTML = "✗ So close — accents matter here. It's <b>" + esc(expected) + "</b>";
+    } else {
+      fb.className = "feedback bad";
+      fb.innerHTML = "✗ Answer: <b>" + esc(expected) + "</b>" +
+        (needsPick && !genderOk
+          ? " <span style='opacity:.75'>(" + genderWord(q.gender) + ")</span>" : "");
+    }
+
+    if (needsPick) {
+      ["gM", "gF"].forEach(function (id) { $(id).disabled = true; });
+    }
+
+    state.log.push({
+      prompt: q.qMode === "es-en" ? q.target : promptEnglish(q),
+      expected: expected + (q.gender && q.qMode === "es-en" && !q.word.invariable
+        ? " (" + genderWord(q.gender) + ")" : ""),
+      given: given.trim() + (needsPick && state.pickedGender
+        ? " (" + genderWord(state.pickedGender) + ")" : ""),
+      ok: ok,
+      qMode: q.qMode,
+      word: q.word
+    });
+
+    $("answer").disabled = true;
+    $("qScore").textContent = state.score + " correct";
+    $("submitBtn").textContent = state.index === state.queue.length - 1 ? "See results" : "Next";
+    $("skipBtn").classList.add("hidden");
+    $("submitBtn").focus();
+  }
+
+  function next() {
+    state.index++;
+    if (state.index >= state.queue.length) finish();
+    else renderQuestion();
+  }
+
+  function skip() {
+    var q = currentQ();
+    state.log.push({
+      prompt: q.qMode === "es-en" ? q.target : promptEnglish(q),
+      expected: expectedFor(q),
+      given: "(skipped)",
+      ok: false,
+      qMode: q.qMode,
+      word: q.word
+    });
+    next();
+  }
+
+  function finish() {
+    $("quiz").classList.add("hidden");
+    $("results").classList.remove("hidden");
+
+    var total = state.log.length;
+    var pct = total ? Math.round(state.score / total * 100) : 0;
+    $("finalScore").innerHTML = state.score + " / " + total + ' <small>(' + pct + '%)</small>';
+    $("verdict").textContent =
+      pct === 100 ? "Perfect run. ¡Muy bien!" :
+      pct >= 80 ? "Strong — a few to tidy up." :
+      pct >= 50 ? "Getting there. Worth another round." :
+      "Early days — try a smaller category to build up.";
+
+    var wrong = state.log.filter(function (r) { return !r.ok; });
+    var wrap = $("reviewWrap");
+    if (!wrong.length) {
+      wrap.innerHTML = "";
+    } else {
+      var rows = wrong.map(function (r) {
+        return "<tr><td class='mark'>✗</td><td>" + esc(r.prompt) + "</td><td>" +
+               esc(r.expected) + "</td><td class='wrong'>" + esc(r.given) + "</td></tr>";
+      }).join("");
+      wrap.innerHTML =
+        "<table><thead><tr><th></th><th>Prompt</th><th>Answer</th>" +
+        "<th>You said</th></tr></thead><tbody>" + rows + "</tbody></table>";
+    }
+
+    // De-duplicate missed words for the retry round.
+    var seen = {}, missedWords = [];
+    wrong.forEach(function (r) {
+      if (!seen[r.word.es]) { seen[r.word.es] = true; missedWords.push(r.word); }
+    });
+    var retry = $("retryWrongBtn");
+    retry.classList.toggle("hidden", missedWords.length === 0);
+    retry.onclick = function () {
+      start(missedWords, state.settings.mode, "all");
+    };
+  }
+
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+    });
+  }
+
+  function toSetup() {
+    $("quiz").classList.add("hidden");
+    $("results").classList.add("hidden");
+    $("setup").classList.remove("hidden");
+  }
+
+  // ---------- wiring ----------
+  initSetup();
+
+  $("startBtn").addEventListener("click", function () {
+    var cat = $("category").value;
+    var words = cat === "all" ? WORDS : WORDS.filter(function (w) { return w.cat === cat; });
+    start(words, $("mode").value, $("count").value);
+  });
+
+  $("answerForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    if (state.answered) next(); else check();
+  });
+
+  ["gM", "gF"].forEach(function (id) {
+    $(id).addEventListener("click", function () {
+      if (state.answered) return;
+      state.pickedGender = this.getAttribute("data-g");
+      $("gM").setAttribute("aria-pressed", String(state.pickedGender === "m"));
+      $("gF").setAttribute("aria-pressed", String(state.pickedGender === "f"));
+      $("answer").focus();
+    });
+  });
+
+  $("skipBtn").addEventListener("click", skip);
+  $("quitBtn").addEventListener("click", function () {
+    if (state.log.length) finish(); else toSetup();
+  });
+  $("againBtn").addEventListener("click", toSetup);
+})();
+</script>
+</body>
+</html>
