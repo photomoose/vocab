@@ -1046,12 +1046,32 @@
     renderBuilder();
   }
 
+  // The data writes gendered words in the textbook's slash notation --
+  // "mi jefe/a es muy educado/a" -- which is shorthand for two real
+  // sentences, not something anyone would write out. Expand it into the
+  // forms a learner would actually type: the masculine (jefe ... educado)
+  // and the feminine (jefa ... educada).
+  function expandSlashes(text) {
+    var masc = text.replace(/(\S+?)\/\S+/g, "$1");
+    var fem = text.replace(/(\S+?)\/(\S+)/g, function (_, stem, suffix) {
+      // "jefe/a" -> jefa: the suffix replaces the stem's last vowel.
+      // "profesor/a" -> profesora: it simply appends.
+      return /[aeiou]$/.test(stem) ? stem.slice(0, -1) + suffix : stem + suffix;
+    });
+    return [masc, fem];
+  }
+
   // Typed answers are marked leniently, like the translation modes: case,
-  // accents and punctuation are ignored. The bracketed "(nada)" is optional,
-  // since the sentence is correct Spanish with or without it.
+  // accents and punctuation are ignored. The bracketed "(nada)" is optional
+  // too, since the sentence is correct Spanish with or without it, and
+  // either gender of a "jefe/a" pairing is accepted.
   function typedMatches(given, target) {
     var want = sentenceEs(target);
-    return matches(given, want) || matches(given, want.replace(/\s*\(nada\)/, ""));
+    var forms = [want, want.replace(/\s*\(nada\)/, "")];
+    forms = forms.concat(forms.reduce(function (acc, f) {
+      return acc.concat(expandSlashes(f));
+    }, []));
+    return forms.some(function (f) { return matches(given, f); });
   }
 
   function checkBuilder() {
