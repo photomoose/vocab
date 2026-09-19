@@ -279,6 +279,15 @@
     margin-right: 6px;
   }
   td.sentence-cell { font-size: 0.875rem; line-height: 1.45; }
+  .typed-back { margin-top: 16px; }
+  .typed-es { font-size: 1.0625rem; font-weight: 400; }
+  .typed-es .diff {
+    color: var(--bad);
+    font-weight: 600;
+    text-decoration: underline;
+    text-decoration-style: wavy;
+    text-underline-offset: 3px;
+  }
 </style>
 </head>
 <body>
@@ -396,9 +405,13 @@
     </div>
 
     <div class="sentence-out">
-      <div class="prompt-label">Your sentence</div>
+      <div class="prompt-label" id="sentenceLabel">Your sentence</div>
       <div class="sentence-es" id="sentenceEs"></div>
       <div class="sentence-en" id="sentenceEn"></div>
+      <div class="typed-back hidden" id="typedBack">
+        <div class="prompt-label">What you wrote</div>
+        <div class="sentence-es typed-es" id="typedEcho"></div>
+      </div>
     </div>
 
     <div class="feedback" id="builderFeedback"></div>
@@ -800,6 +813,8 @@
     picks: [],         // index into each step's choices, or null
     target: null,      // test mode: the answer, one index per step
     checked: false,
+    lastTyped: null,   // the typed attempt, echoed back when it was wrong
+    lastOk: false,
     // A test round is a fixed number of sentences with a running score,
     // mirroring how the vocab quiz works.
     round: null        // {total, index, score, log:[{en, expected, given, ok}]}
@@ -874,6 +889,8 @@
   function nextSentence() {
     builder.picks = blankPicks();
     builder.checked = false;
+    builder.lastTyped = null;
+    builder.lastOk = false;
     builder.target = randomPicks();
     clearBuilderFeedback();
     $("typedAnswer").value = "";
@@ -890,6 +907,8 @@
   function resetBuilder() {
     builder.picks = blankPicks();
     builder.checked = false;
+    builder.lastTyped = null;
+    builder.lastOk = false;
     clearBuilderFeedback();
     if (builder.mode === "test") {
       $("typedAnswer").value = "";
@@ -1004,6 +1023,50 @@
 
   // Unpicked steps show as a dash so the shape of the sentence stays visible
   // while it is being assembled.
+  // Mark the words of a typed answer that differ from the expected sentence,
+  // so "you wrote the same thing but it's wrong" never happens: a wrong
+  // answer always shows WHICH words were wrong. Comparison is on the same
+  // normalised forms the marking uses, so accents alone never flag a word.
+  function diffWords(given, target) {
+    var raw = sentenceEs(target).replace(/[()]/g, "");
+    var want = [raw].concat(expandSlashes(raw));
+    // Compare against whichever accepted form is closest, so a learner who
+    // chose the feminine is not told every gendered word is wrong.
+    var wantWords = want.map(function (f) { return normalise(f).split(" "); });
+    var givenWords = given.trim().split(/\s+/);
+
+    // A written word can normalise to several tokens ("jefe/a" -> "jefe a"),
+    // so match on the token list and treat the word as known only if every
+    // token of it is expected.
+    function tokens(word) {
+      var t = normalise(word);
+      return t ? t.split(" ") : [];
+    }
+
+    function consume(pool, word) {
+      var ts = tokens(word);
+      if (!ts.length) return false;          // punctuation only — never wrong
+      var at = ts.map(function (t) { return pool.indexOf(t); });
+      if (at.some(function (i) { return i === -1; })) return false;
+      at.sort(function (a, b) { return b - a; })
+        .forEach(function (i) { pool.splice(i, 1); });
+      return true;
+    }
+
+    var best = null;
+    wantWords.forEach(function (ws) {
+      var trial = ws.slice(), score = 0;
+      givenWords.forEach(function (gw) { if (consume(trial, gw)) score++; });
+      if (!best || score > best.score) best = { score: score, words: ws };
+    });
+
+    var pool = best.words.slice();
+    return givenWords.map(function (gw) {
+      if (!tokens(gw).length || consume(pool, gw)) return esc(gw);
+      return '<span class="diff">' + esc(gw) + "</span>";
+    }).join(" ");
+  }
+
   function renderSentence() {
     var typing = builder.mode === "test" && builder.style === "type";
     // Typing mode has no live sentence to show — that would be the answer.
@@ -1011,7 +1074,13 @@
     $("sentenceEs").parentNode.classList.toggle("hidden", !live);
     if (!live) return;
 
-    var picks = (typing && builder.checked) ? builder.target : builder.picks;
+    // After a typed answer the panel shows the ANSWER, not the learner's
+    // attempt, so the label has to say so — calling it "your sentence" is
+    // what made a correct rejection look like a bug.
+    var showingAnswer = typing && builder.checked;
+    $("sentenceLabel").textContent = showingAnswer ? "The answer" : "Your sentence";
+
+    var picks = showingAnswer ? builder.target : builder.picks;
     var esParts = STEPS.map(function (st, i) {
       var p = picks[i];
       return p === null || p === undefined
@@ -1019,6 +1088,15 @@
     });
     $("sentenceEs").innerHTML = capitalise(esParts.join(" ")) +
       (allPicked(picks) ? "." : "");
+
+    // Echo the typed attempt back underneath, with the differing words
+    // marked, so a near miss is obvious at a glance.
+    var echo = builder.lastTyped;
+    var showEcho = showingAnswer && !!echo && !builder.lastOk;
+    $("typedBack").classList.toggle("hidden", !showEcho);
+    if (showEcho) {
+      $("typedEcho").innerHTML = diffWords(echo, builder.target);
+    }
 
     // English only once the sentence is complete — a half-built translation
     // reads as nonsense and teaches nothing. In test mode the English is
@@ -1098,6 +1176,8 @@
     }
 
     builder.checked = true;
+    builder.lastTyped = typing ? given : null;
+    builder.lastOk = ok;
     if (ok) builder.round.score++;
     $("typedAnswer").disabled = true;
 
@@ -1107,7 +1187,7 @@
       fb.innerHTML = "✓ Correct — <b>" + esc(answer) + "</b>";
     } else if (typing) {
       fb.className = "feedback bad";
-      fb.innerHTML = "✗ Answer: <b>" + esc(answer) + "</b>";
+      fb.textContent = "✗ Not quite — the wrong words are marked below.";
     } else {
       // Picking gives partial credit worth reporting, even though the mark
       // for the sentence is all-or-nothing.

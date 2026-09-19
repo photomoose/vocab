@@ -78,6 +78,10 @@ The slash notation in the data (`mi jefe/a es muy educado/a`) is shorthand for
 two real sentences, so typing either one out in full is accepted. Mixing the
 genders (`mi jefe es muy educada`) is not — the agreement is the point.
 
+A wrong typed answer is echoed back underneath the correct one with the
+offending words underlined, so a near miss shows *which* words were wrong
+rather than leaving you comparing two long sentences by eye.
+
 ## Adding sentences
 
 `sentences.js` holds one frame. Each step is a list of `{ es, en }` choices:
