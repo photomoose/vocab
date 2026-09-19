@@ -188,6 +188,86 @@
   td { padding: 8px 8px 8px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
   td.mark { width: 1.5em; }
   td.wrong { color: var(--bad); }
+
+  /* Sentence builder */
+  .seg { display: flex; gap: 0; }
+  .seg button {
+    border-radius: 0;
+    margin-left: -1px;
+    padding: 7px 16px;
+    font-size: 0.9375rem;
+  }
+  .seg button:first-child { border-radius: 8px 0 0 8px; margin-left: 0; }
+  .seg button:last-child { border-radius: 0 8px 8px 0; }
+  .seg button[aria-pressed="true"] {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+    position: relative;
+    z-index: 1;
+  }
+  .brief-en {
+    font-size: 1.125rem;
+    font-weight: 500;
+    margin-bottom: 20px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--line);
+  }
+  .step { margin-bottom: 16px; }
+  .step > .step-label {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .step > .step-label i { font-style: normal; opacity: .7; }
+  .opts { display: flex; gap: 8px; flex-wrap: wrap; }
+  .opts button {
+    padding: 8px 14px;
+    font-size: 0.9375rem;
+    text-align: left;
+  }
+  .opts button[aria-pressed="true"] {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  .opts button:disabled { cursor: default; }
+  .opts button.mark-good[aria-pressed="true"] {
+    background: var(--good);
+    border-color: var(--good);
+  }
+  .opts button.mark-bad[aria-pressed="true"] {
+    background: var(--bad);
+    border-color: var(--bad);
+  }
+  .opts button.mark-want {
+    border-color: var(--good);
+    color: var(--good);
+  }
+  .step.fixed .fixed-text {
+    padding: 8px 0;
+    font-size: 0.9375rem;
+    color: var(--muted);
+  }
+  .sentence-out {
+    margin-top: 22px;
+    padding-top: 18px;
+    border-top: 1px solid var(--line);
+  }
+  .sentence-es {
+    font-size: 1.25rem;
+    font-weight: 500;
+    line-height: 1.4;
+    margin-bottom: 6px;
+    min-height: 1.4em;
+  }
+  .sentence-es .gap { color: var(--muted); font-weight: 400; }
+  .sentence-en { color: var(--muted); font-size: 0.9375rem; min-height: 1.4em; }
 </style>
 </head>
 <body>
@@ -205,13 +285,14 @@
         <option value="spell">Spelling — type the full Spanish word</option>
         <option value="fill">Spelling — fill in the missing letters</option>
         <option value="mixed">Mixed — a bit of everything</option>
+        <option value="sentence">Sentence builder — build a sentence step by step</option>
       </select>
     </label>
-    <label class="field">
+    <label class="field" id="categoryField">
       <span>Category</span>
       <select id="category"></select>
     </label>
-    <label class="field">
+    <label class="field" id="countField">
       <span>Number of questions</span>
       <select id="count">
         <option>10</option>
@@ -257,6 +338,37 @@
     </form>
   </section>
 
+  <!-- ============= SENTENCE BUILDER ============= -->
+  <section id="builder" class="panel hidden">
+    <div class="row" style="justify-content:space-between; margin-bottom:18px">
+      <div class="seg" id="builderModes">
+        <button type="button" data-bmode="explore" aria-pressed="true">Explore</button>
+        <button type="button" data-bmode="test" aria-pressed="false">Test</button>
+      </div>
+      <button type="button" id="builderExit">Back</button>
+    </div>
+
+    <div id="testBrief" class="hidden">
+      <div class="prompt-label">Build this sentence</div>
+      <div class="brief-en" id="briefEn"></div>
+    </div>
+
+    <div id="steps"></div>
+
+    <div class="sentence-out">
+      <div class="prompt-label">Your sentence</div>
+      <div class="sentence-es" id="sentenceEs"></div>
+      <div class="sentence-en" id="sentenceEn"></div>
+    </div>
+
+    <div class="feedback" id="builderFeedback"></div>
+
+    <div class="row" style="margin-top:16px">
+      <button class="primary" id="builderPrimary">Check</button>
+      <button type="button" id="builderReset">Clear</button>
+    </div>
+  </section>
+
   <!-- ================= RESULTS ================= -->
   <section id="results" class="panel hidden">
     <div class="score" id="finalScore"></div>
@@ -270,6 +382,7 @@
 </main>
 
 <script src="words.js"></script>
+<script src="sentences.js"></script>
 <script>
 (function () {
   "use strict";
@@ -636,6 +749,217 @@
     };
   }
 
+  // ---------- sentence builder ----------
+  // A five-step frame (see sentences.js). Explore lets you pick freely and
+  // read the sentence back in both languages; Test picks a target sentence at
+  // random, shows its English, and marks the choices you make against it.
+  var builder = {
+    mode: "explore",   // "explore" | "test"
+    picks: [],         // index into each step's choices, or null
+    target: null,      // test mode: the answer, one index per step
+    checked: false
+  };
+
+  var STEPS = SENTENCE_FRAME.steps;
+
+  // Fixed steps (single choice, no decision to make) are always "picked" and
+  // never scored — they are scaffolding holding the sentence together.
+  function isFixed(step) { return !!step.fixed || step.choices.length === 1; }
+
+  function blankPicks() {
+    return STEPS.map(function (st) { return isFixed(st) ? 0 : null; });
+  }
+
+  function randomPicks() {
+    return STEPS.map(function (st) {
+      return isFixed(st) ? 0 : Math.floor(Math.random() * st.choices.length);
+    });
+  }
+
+  function sentenceEs(picks) {
+    var parts = [];
+    for (var i = 0; i < STEPS.length; i++) {
+      if (picks[i] === null || picks[i] === undefined) return null;
+      parts.push(STEPS[i].choices[picks[i]].es);
+    }
+    return parts.join(" ");
+  }
+
+  // English mostly runs in the same order as the Spanish, so the fragments
+  // just join up. Where the two languages disagree about word order, a choice
+  // carries enPair: the English for itself AND the following fragment, which
+  // it then swallows ("No me gusta (nada) mi trabajo porque es" has to become
+  // "I don't like my job at all, because it's" in one piece).
+  function sentenceEn(picks) {
+    var parts = [];
+    for (var i = 0; i < STEPS.length; i++) {
+      if (picks[i] === null || picks[i] === undefined) return null;
+      var choice = STEPS[i].choices[picks[i]];
+      if (choice.enPair && i + 1 < STEPS.length) {
+        if (picks[i + 1] === null || picks[i + 1] === undefined) return null;
+        parts.push(choice.enPair);
+        i++;                       // the paired fragment is already covered
+      } else {
+        parts.push(choice.en);
+      }
+    }
+    return parts.join(" ");
+  }
+
+  function allPicked(picks) {
+    return picks.every(function (p) { return p !== null && p !== undefined; });
+  }
+
+  function startBuilder() {
+    $("setup").classList.add("hidden");
+    $("quiz").classList.add("hidden");
+    $("results").classList.add("hidden");
+    $("builder").classList.remove("hidden");
+    resetBuilder();
+  }
+
+  function resetBuilder() {
+    builder.picks = blankPicks();
+    builder.checked = false;
+    builder.target = builder.mode === "test" ? randomPicks() : null;
+    $("builderFeedback").textContent = "";
+    $("builderFeedback").className = "feedback";
+    renderBuilder();
+  }
+
+  function setBuilderMode(mode) {
+    builder.mode = mode;
+    Array.prototype.forEach.call(
+      $("builderModes").querySelectorAll("button"),
+      function (b) {
+        b.setAttribute("aria-pressed", String(b.getAttribute("data-bmode") === mode));
+      }
+    );
+    resetBuilder();
+  }
+
+  function renderBuilder() {
+    var testing = builder.mode === "test";
+    var done = builder.checked;
+
+    $("testBrief").classList.toggle("hidden", !testing);
+    if (testing) $("briefEn").textContent = capitalise(sentenceEn(builder.target)) + ".";
+
+    var wrap = $("steps");
+    wrap.innerHTML = "";
+    STEPS.forEach(function (step, si) {
+      var div = document.createElement("div");
+      div.className = "step" + (isFixed(step) ? " fixed" : "");
+
+      var lab = document.createElement("div");
+      lab.className = "step-label";
+      lab.innerHTML = "Step " + (si + 1) + " — " + esc(step.label) +
+        (isFixed(step) ? " <i>(fixed)</i>" : "");
+      div.appendChild(lab);
+
+      if (isFixed(step)) {
+        var fx = document.createElement("div");
+        fx.className = "fixed-text";
+        fx.textContent = step.choices[0].es;
+        div.appendChild(fx);
+      } else {
+        var opts = document.createElement("div");
+        opts.className = "opts";
+        step.choices.forEach(function (choice, ci) {
+          var b = document.createElement("button");
+          b.type = "button";
+          b.textContent = choice.es;
+          var picked = builder.picks[si] === ci;
+          b.setAttribute("aria-pressed", String(picked));
+
+          // After checking a test, colour the marking: your pick green or red,
+          // and the answer you missed outlined in green.
+          if (testing && done) {
+            b.disabled = true;
+            var want = builder.target[si] === ci;
+            if (picked) b.className = want ? "mark-good" : "mark-bad";
+            else if (want) b.className = "mark-want";
+          }
+
+          b.addEventListener("click", function () { pickChoice(si, ci); });
+          opts.appendChild(b);
+        });
+        div.appendChild(opts);
+      }
+      wrap.appendChild(div);
+    });
+
+    renderSentence();
+    renderBuilderButtons();
+  }
+
+  // Unpicked steps show as a dash so the shape of the sentence stays visible
+  // while it is being assembled.
+  function renderSentence() {
+    var esParts = STEPS.map(function (st, i) {
+      var p = builder.picks[i];
+      return p === null || p === undefined
+        ? '<span class="gap">—</span>' : esc(st.choices[p].es);
+    });
+    $("sentenceEs").innerHTML = capitalise(esParts.join(" ")) +
+      (allPicked(builder.picks) ? "." : "");
+
+    // English only once the sentence is complete — a half-built translation
+    // reads as nonsense and teaches nothing.
+    var en = allPicked(builder.picks) ? sentenceEn(builder.picks) : null;
+    $("sentenceEn").textContent = en ? '"' + capitalise(en) + '."' : "";
+  }
+
+  function renderBuilderButtons() {
+    var testing = builder.mode === "test";
+    var btn = $("builderPrimary");
+    btn.classList.toggle("hidden", !testing);
+    btn.textContent = builder.checked ? "Next sentence" : "Check";
+    $("builderReset").textContent = testing ? "Clear answers" : "Clear";
+  }
+
+  function pickChoice(si, ci) {
+    if (builder.mode === "test" && builder.checked) return;
+    builder.picks[si] = builder.picks[si] === ci ? null : ci;
+    if (builder.mode === "test") {
+      $("builderFeedback").textContent = "";
+      $("builderFeedback").className = "feedback";
+    }
+    renderBuilder();
+  }
+
+  function checkBuilder() {
+    if (builder.checked) { resetBuilder(); return; }
+
+    var fb = $("builderFeedback");
+    if (!allPicked(builder.picks)) {
+      fb.className = "feedback bad";
+      fb.textContent = "Choose an option at every step first.";
+      return;
+    }
+
+    // Only the steps with a real decision count towards the mark.
+    var scored = 0, right = 0;
+    STEPS.forEach(function (st, i) {
+      if (isFixed(st)) return;
+      scored++;
+      if (builder.picks[i] === builder.target[i]) right++;
+    });
+
+    builder.checked = true;
+    if (right === scored) {
+      fb.className = "feedback good";
+      fb.innerHTML = "✓ Spot on — <b>" + esc(capitalise(sentenceEs(builder.target))) + ".</b>";
+    } else {
+      fb.className = "feedback bad";
+      fb.innerHTML = "✗ " + right + " of " + scored + " steps right. Answer: <b>" +
+        esc(capitalise(sentenceEs(builder.target))) + ".</b>";
+    }
+    renderBuilder();
+  }
+
+  function capitalise(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
   function esc(s) {
     return String(s).replace(/[&<>"]/g, function (c) {
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
@@ -652,6 +976,7 @@
   initSetup();
 
   $("startBtn").addEventListener("click", function () {
+    if ($("mode").value === "sentence") { startBuilder(); return; }
     var cat = $("category").value;
     var words = cat === "all" ? WORDS : WORDS.filter(function (w) { return w.cat === cat; });
     start(words, $("mode").value, $("count").value);
@@ -677,6 +1002,28 @@
     if (state.log.length) finish(); else toSetup();
   });
   $("againBtn").addEventListener("click", toSetup);
+
+  // Category and question count mean nothing for the sentence builder.
+  $("mode").addEventListener("change", function () {
+    var sentence = this.value === "sentence";
+    $("categoryField").classList.toggle("hidden", sentence);
+    $("countField").classList.toggle("hidden", sentence);
+  });
+
+  Array.prototype.forEach.call(
+    $("builderModes").querySelectorAll("button"),
+    function (b) {
+      b.addEventListener("click", function () {
+        setBuilderMode(this.getAttribute("data-bmode"));
+      });
+    }
+  );
+  $("builderPrimary").addEventListener("click", checkBuilder);
+  $("builderReset").addEventListener("click", resetBuilder);
+  $("builderExit").addEventListener("click", function () {
+    $("builder").classList.add("hidden");
+    toSetup();
+  });
 })();
 </script>
 </body>

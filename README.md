@@ -12,6 +12,7 @@ A small browser-based vocabulary game. No build step, no dependencies — open
 | Spelling — full word | `bread` (+ letter count) | `pan` |
 | Spelling — missing letters | `bread` and `p_n` | `pan` |
 | Mixed | randomly interleaves all four | |
+| Sentence builder | a five-step frame | pick a fragment per step (see below) |
 
 Pick a category and a question count, then answer with Enter; Enter again moves
 to the next question. Accent buttons (á é í ó ú ü ñ) sit under the input.
@@ -44,6 +45,46 @@ scored.
 
 At the end you get a table of what you missed and a button to re-practise just
 those words.
+
+## Sentence builder
+
+A different exercise: instead of single words, you assemble a whole sentence
+from five steps, one choice per step.
+
+    Me gusta | mi trabajo porque es | interesante | y | mis compañeros son simpáticos
+
+Step 2 is fixed scaffolding — it is shown but not chosen, and never marked.
+The other four steps give 168 possible sentences.
+
+Two ways to use it, switched with the Explore/Test toggle:
+
+- **Explore** — pick freely. The Spanish assembles as you go, with unpicked
+  steps shown as `—`; the English appears once the sentence is complete.
+- **Test** — the app picks a sentence, shows you its English, and you rebuild
+  the Spanish. On checking you get a step score, your wrong picks in red and
+  the answers you missed outlined in green.
+
+## Adding sentences
+
+`sentences.js` holds one frame. Each step is a list of `{ es, en }` choices:
+
+```js
+{ label: "Adjective", choices: [ { es: "difícil", en: "difficult" } ] }
+```
+
+Mark a step `fixed: true` when it has a single choice that is never tested.
+
+Translation is fragment-by-fragment, which works as long as both languages
+keep the same order. Where they don't, a choice carries `enPair` — the English
+for itself *and* the fragment after it, which it then absorbs:
+
+```js
+{ es: "No me gusta (nada)", en: "I don't like",
+  enPair: "I don't like my job at all, because it's" },
+```
+
+This is what stops `No me gusta (nada) mi trabajo porque es` becoming the
+word-salad "I don't like ... (at all) my job because it's".
 
 ## Adding words
 
