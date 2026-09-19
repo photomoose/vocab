@@ -60,9 +60,19 @@ Two ways to use it, switched with the Explore/Test toggle:
 
 - **Explore** — pick freely. The Spanish assembles as you go, with unpicked
   steps shown as `—`; the English appears once the sentence is complete.
-- **Test** — the app picks a sentence, shows you its English, and you rebuild
-  the Spanish. On checking you get a step score, your wrong picks in red and
-  the answers you missed outlined in green.
+- **Test** — a scored round of sentences. The app shows you an English
+  sentence and you rebuild the Spanish; at the end you get a score and a list
+  of the ones you missed.
+
+Set the round length and how you answer on the setup screen:
+
+| Answer style | You get | Marking |
+|---|---|---|
+| Pick the fragments | the buttons, as in Explore | all-or-nothing, but the feedback says how many steps were right, your wrong picks go red and the ones you missed are outlined green |
+| Type the whole sentence | a text box and accent keys | lenient — case, accents and punctuation ignored, and `(nada)` is optional |
+
+Typing hides the fragment buttons until you have answered, since they would
+otherwise give the sentence away.
 
 ## Adding sentences
 
